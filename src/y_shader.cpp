@@ -7,8 +7,13 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 std::shared_ptr<spdlog::logger> logger;
 GLuint hProgram;
+GLuint hTexture;
+GLuint hTexture2;
 
 GLuint prepareShaderProgram(const char* vertexShaderFilename, const char* fragmentShaderFilename, std::shared_ptr<spdlog::logger> logger) {
 
@@ -108,10 +113,10 @@ void prepareScene()
 
 	static const GLfloat vertex_buffer_data[] =
 	{
-		-0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-		-0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f,
-		0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 0.0f,
+		-0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+		-0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+		0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f
 	};
 
 	static const GLuint vertex_index_data[] =
@@ -120,20 +125,16 @@ void prepareScene()
 		2, 4, 6
 	};
 
-	static const GLfloat texCoords[] = {
-		0.0f, 0.0f,
-		1.0f, 0.0f,
-		0.5f, 1.0f 
-	};
-
 	GLuint hVBO;
 	glGenBuffers(1, &hVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, hVBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buffer_data), vertex_buffer_data, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
 	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(2);
 
 	GLuint hEBO;
 	glGenBuffers(1, &hEBO);
@@ -146,6 +147,28 @@ void prepareScene()
 	glDisableVertexAttribArray(0);
 	hProgram = prepareShaderProgram("vertex_shader.glsl", "fragment_shader.glsl", logger);
 	glUseProgram(hProgram);
+
+	int width;
+	int height;
+	int comp;
+
+	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &hTexture);
+	glBindTexture(GL_TEXTURE_2D, hTexture);
+	glUniform1i(glGetUniformLocation(hProgram, "curTexture1"), 0);
+	unsigned char* textureData = stbi_load("grass.jpg", &width, &height, &comp, STBI_rgb_alpha);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureData);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	stbi_image_free(textureData);
+
+	glActiveTexture(GL_TEXTURE1);
+	glGenTextures(1, &hTexture2);
+	glBindTexture(GL_TEXTURE_2D, hTexture2);
+	glUniform1i(glGetUniformLocation(hProgram, "curTexture2"), 1);
+	textureData = stbi_load("lava.jpg", &width, &height, &comp, STBI_rgb_alpha);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureData);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	stbi_image_free(textureData);
 }
 
 void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
@@ -164,7 +187,6 @@ void draw()
 	GLfloat yVal = (cos(timeValue) / 2);
 	GLint shiftUniformLocation = glGetUniformLocation(hProgram, "shift");
 	glUniform3f(shiftUniformLocation, xVal, yVal, 0.0f);
-
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	glDisableVertexAttribArray(0);
 }
